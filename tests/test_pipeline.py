@@ -73,3 +73,34 @@ def test_total_items_sold_feb(raw_fixture):
             WHERE product_name = 'Classic Basket' AND month = '2024-02-01'
         """)).scalar()
     assert items == 3
+
+
+# ── Unit tests: extract (requires MySQL connection) ───────────────────────────
+
+def test_extract_loads_raw_tables(pg_engine):
+    from pipeline.extract import extract
+    extract()
+    with pg_engine.connect() as conn:
+        orders_count = conn.execute(text("SELECT COUNT(*) FROM raw.orders")).scalar()
+        items_count = conn.execute(text("SELECT COUNT(*) FROM raw.order_items")).scalar()
+        products_count = conn.execute(text("SELECT COUNT(*) FROM raw.products")).scalar()
+    assert orders_count > 0
+    assert items_count > 0
+    assert products_count > 0
+
+
+def test_extract_raw_orders_has_expected_columns(pg_engine):
+    from pipeline.extract import extract
+    extract()
+    with pg_engine.connect() as conn:
+        row = conn.execute(text("SELECT * FROM raw.orders LIMIT 1")).mappings().first()
+    assert {"order_id", "customer_id", "order_date", "status"}.issubset(set(row.keys()))
+
+
+def test_extract_raw_order_items_has_price(pg_engine):
+    from pipeline.extract import extract
+    extract()
+    with pg_engine.connect() as conn:
+        row = conn.execute(text("SELECT * FROM raw.order_items LIMIT 1")).mappings().first()
+    assert "price_usd" in row.keys()
+    assert row["price_usd"] is not None

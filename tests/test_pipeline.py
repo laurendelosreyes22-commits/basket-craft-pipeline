@@ -104,3 +104,29 @@ def test_extract_raw_order_items_has_price(pg_engine):
         row = conn.execute(text("SELECT * FROM raw.order_items LIMIT 1")).mappings().first()
     assert "price_usd" in row.keys()
     assert row["price_usd"] is not None
+
+
+# ── Smoke test: full end-to-end run against real MySQL ────────────────────────
+
+def test_smoke_full_pipeline(pg_engine):
+    """Runs extract + transform against the real MySQL DB and verifies output."""
+    from pipeline.extract import extract
+    from pipeline.transform import transform
+
+    extract()
+    transform()
+
+    with pg_engine.connect() as conn:
+        count = conn.execute(
+            text("SELECT COUNT(*) FROM analytics.monthly_sales_summary")
+        ).scalar()
+        row = conn.execute(
+            text("SELECT * FROM analytics.monthly_sales_summary LIMIT 1")
+        ).mappings().first()
+
+    assert count > 0, "Expected rows in analytics.monthly_sales_summary"
+    assert row["total_revenue"] is not None
+    assert float(row["total_revenue"]) > 0
+    assert row["order_count"] > 0
+    assert row["total_items_sold"] > 0
+    assert row["loaded_at"] is not None

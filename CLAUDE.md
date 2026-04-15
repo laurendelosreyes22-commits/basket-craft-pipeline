@@ -94,3 +94,53 @@ The MySQL source has 8 tables total: `employees`, `order_item_refunds`, `order_i
 ```
 0 2 1 * * cd /path/to/basket-craft-pipeline && .venv/bin/python run_pipeline.py 2>> /var/log/basket_craft_pipeline.log
 ```
+
+## dbt Project
+
+The dbt project lives at `basket_craft/` inside the repo root. All dbt commands must be run from inside that directory.
+
+```bash
+cd basket_craft
+
+# Source env vars so profiles.yml can read them (required before any dbt command)
+set -a && source ../.env && set +a
+
+# Build all models
+../.venv/bin/dbt run
+
+# Run data tests
+../.venv/bin/dbt test
+
+# Build and test in one command
+../.venv/bin/dbt build
+
+# Generate and serve documentation
+../.venv/bin/dbt docs generate
+../.venv/bin/dbt docs serve --port 8080
+```
+
+### Profiles
+
+`~/.dbt/profiles.yml` lives outside the repo (never committed). It reads all Snowflake credentials via `env_var()` from the shell environment — the `set -a && source ../.env && set +a` step above is required before running any dbt command. The profile name is `basket_craft` and the target schema is `analytics`.
+
+### Models
+
+**Staging** (`basket_craft/models/staging/`) — rename and cast only, no joins or filters:
+
+| Model | Source |
+|---|---|
+| `stg_orders` | `raw.orders` |
+| `stg_order_items` | `raw.order_items` |
+| `stg_products` | `raw.products` |
+| `stg_customers` | `raw.users` (via `identifier:`) |
+
+**Marts** (`basket_craft/models/marts/`) — business-level tables:
+
+| Model | Grain | Type |
+|---|---|---|
+| `dim_date` | One row per calendar day (2020–2030) | table |
+| `dim_customers` | One row per customer | table |
+| `dim_products` | One row per product | table |
+| `fct_order_items` | One row per order line item | table |
+
+Staging models are materialized as **views**; mart models are materialized as **tables**. All identifiers are lowercase and unquoted.

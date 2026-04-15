@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: fct_order_items
+    description: "Fact table at order-line grain. One row per product sold in one order."
+    columns:
+      - name: order_item_id
+        description: "Surrogate key. Unique per line item."
+        tests:
+          - unique
+          - not_null

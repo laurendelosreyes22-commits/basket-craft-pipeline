@@ -55,6 +55,17 @@ def load_snowflake():
                 auto_create_table=True,
                 overwrite=True,
             )
+
+            cursor = sf_conn.cursor()
+            cursor.execute(f"SELECT COUNT(*) FROM {database}.{schema}.{table}")
+            sf_count = cursor.fetchone()[0]
+            cursor.close()
+
+            if sf_count != len(df):
+                raise RuntimeError(
+                    f"{table}: sent {len(df):,} rows but Snowflake has {sf_count:,}"
+                )
+
             print(f"  Loaded {len(df):,} rows into {database}.{schema}.{table}")
 
     sf_conn.close()

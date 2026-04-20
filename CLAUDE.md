@@ -27,7 +27,7 @@ Credentials live in `.env` (gitignored). The file has four credential groups:
 .venv/bin/python -c "from pipeline.load_raw import load_raw; load_raw()"
 
 # Load all raw tables from RDS into Snowflake basket_craft.raw (truncate-and-reload)
-.venv/bin/python -c "from pipeline.load_snowflake import load_snowflake; load_snowflake()"
+.venv/bin/python -m pipeline.load_snowflake
 
 # Start local Postgres (required for tests and run_pipeline.py)
 docker compose up -d
@@ -87,7 +87,7 @@ The MySQL source has 8 tables total: `employees`, `order_item_refunds`, `order_i
 - **`order_items` in MySQL has no `quantity` column**: each row is one unit. The `conftest.py` fixture has a `quantity` column because the local Postgres schema was designed with it — these schemas diverge from the actual RDS raw schema.
 - **Tests target local Docker Postgres** via `POSTGRES_URL`, not RDS. Tests require `docker compose up -d` and initialized schemas first.
 - **Transform SQL references `raw.order_items.quantity`** — this works against the local fixture but will fail if run against the RDS raw schema (which reflects actual MySQL columns).
-- **Snowflake identifiers are lowercase and unquoted** — `load_snowflake.py` lowercases all DataFrame column names and sets `quote_identifiers=False` so Snowflake stores them as standard uppercase internally. Never introduce quoted identifiers (`"column_name"`) — this is the #1 cause of dbt failures with Snowflake.
+- **Snowflake identifiers are uppercase and unquoted** — `load_snowflake.py` uppercases all DataFrame column names and passes `table_name=table.upper()` with `quote_identifiers=False`. Snowflake receives unquoted uppercase identifiers and stores them as standard uppercase internally. SQL queries (including post-load validation) use lowercase unquoted identifiers; Snowflake normalizes them to uppercase at query time. Never introduce quoted identifiers (`"column_name"`) — this is the #1 cause of dbt failures with Snowflake.
 
 ### Cron Schedule
 

@@ -43,12 +43,12 @@ def load_snowflake():
     with rds_engine.connect() as rds_conn:
         for table in tables:
             df = pd.read_sql(text(f"SELECT * FROM raw.{table}"), rds_conn)
-            df.columns = [c.lower() for c in df.columns]
+            df.columns = [c.upper() for c in df.columns]
 
             write_pandas(
                 sf_conn,
                 df,
-                table_name=table,
+                table_name=table.upper(),
                 database=database,
                 schema=schema,
                 quote_identifiers=False,

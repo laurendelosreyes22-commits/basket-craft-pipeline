@@ -121,3 +121,21 @@ def test_row_count_match_does_not_raise(mock_env):
     ):
         mock_wp.return_value = (True, 1, 2, "")
         load_snowflake()  # must not raise
+
+
+def test_write_pandas_failure_raises(mock_env):
+    """RuntimeError must be raised when write_pandas reports success=False."""
+    tables = ["orders"]
+    df = pd.DataFrame([{"order_id": 1}])
+    sf_conn, engine, inspector, _ = _make_mocks(tables, row_counts=[1])
+
+    with (
+        patch("pipeline.load_snowflake.create_engine", return_value=engine),
+        patch("pipeline.load_snowflake.inspect", return_value=inspector),
+        patch("pipeline.load_snowflake.snowflake.connector.connect", return_value=sf_conn),
+        patch("pipeline.load_snowflake.pd.read_sql", return_value=df),
+        patch("pipeline.load_snowflake.write_pandas") as mock_wp,
+    ):
+        mock_wp.return_value = (False, 0, 0, "copy into failed")
+        with pytest.raises(RuntimeError, match="write_pandas reported failure"):
+            load_snowflake()

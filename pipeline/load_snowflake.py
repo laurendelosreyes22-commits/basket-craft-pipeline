@@ -48,7 +48,7 @@ def load_snowflake():
                 df = pd.read_sql(text(f"SELECT * FROM raw.{table}"), rds_conn)
                 df.columns = [c.upper() for c in df.columns]
 
-                write_pandas(
+                success, _, _, output = write_pandas(
                     sf_conn,
                     df,
                     table_name=table.upper(),
@@ -58,6 +58,8 @@ def load_snowflake():
                     auto_create_table=True,
                     overwrite=True,
                 )
+                if not success:
+                    raise RuntimeError(f"{table}: write_pandas reported failure — output: {output}")
 
                 cursor = sf_conn.cursor()
                 cursor.execute(f"SELECT COUNT(*) FROM {database}.{schema}.{table}")

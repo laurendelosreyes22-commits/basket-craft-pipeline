@@ -86,3 +86,38 @@ def test_table_name_is_uppercase(mock_env):
         load_snowflake()
 
     assert mock_wp.call_args[1]["table_name"] == "ORDERS"
+
+
+def test_row_count_mismatch_raises(mock_env):
+    """RuntimeError must be raised when Snowflake COUNT(*) does not match len(df)."""
+    tables = ["orders"]
+    df = pd.DataFrame([{"order_id": 1}, {"order_id": 2}])  # 2 rows
+    sf_conn, engine, inspector, _ = _make_mocks(tables, row_counts=[1])  # Snowflake returns 1
+
+    with (
+        patch("pipeline.load_snowflake.create_engine", return_value=engine),
+        patch("pipeline.load_snowflake.inspect", return_value=inspector),
+        patch("pipeline.load_snowflake.snowflake.connector.connect", return_value=sf_conn),
+        patch("pipeline.load_snowflake.pd.read_sql", return_value=df),
+        patch("pipeline.load_snowflake.write_pandas") as mock_wp,
+    ):
+        mock_wp.return_value = (True, 1, 2, "")
+        with pytest.raises(RuntimeError, match="orders"):
+            load_snowflake()
+
+
+def test_row_count_match_does_not_raise(mock_env):
+    """No error when Snowflake COUNT(*) matches the number of rows sent."""
+    tables = ["orders"]
+    df = pd.DataFrame([{"order_id": 1}, {"order_id": 2}])  # 2 rows
+    sf_conn, engine, inspector, _ = _make_mocks(tables, row_counts=[2])  # Snowflake returns 2
+
+    with (
+        patch("pipeline.load_snowflake.create_engine", return_value=engine),
+        patch("pipeline.load_snowflake.inspect", return_value=inspector),
+        patch("pipeline.load_snowflake.snowflake.connector.connect", return_value=sf_conn),
+        patch("pipeline.load_snowflake.pd.read_sql", return_value=df),
+        patch("pipeline.load_snowflake.write_pandas") as mock_wp,
+    ):
+        mock_wp.return_value = (True, 1, 2, "")
+        load_snowflake()  # must not raise

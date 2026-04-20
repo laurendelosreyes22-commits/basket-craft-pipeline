@@ -102,7 +102,7 @@ def test_row_count_mismatch_raises(mock_env):
         patch("pipeline.load_snowflake.write_pandas") as mock_wp,
     ):
         mock_wp.return_value = (True, 1, 2, "")
-        with pytest.raises(RuntimeError, match="orders"):
+        with pytest.raises(RuntimeError, match="orders: sent"):
             load_snowflake()
 
 

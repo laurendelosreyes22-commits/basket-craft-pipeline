@@ -30,7 +30,7 @@ pipeline/load_snowflake.py
 │     ├── open Snowflake connection (context manager)
 │     ├── open RDS connection (context manager, nested inside Snowflake)
 │     ├── discover tables via SQLAlchemy inspect()
-│     └── for each table: read → lowercase columns → write_pandas → validate
+│     └── for each table: read → uppercase columns + table name → write_pandas → validate
 └── if __name__ == "__main__":
       configure logging.basicConfig(level=INFO)
       call load_snowflake()
@@ -66,12 +66,29 @@ The current `sf_conn.close()` call at the end of the function is removed — the
 
 ---
 
+## Identifier Casing
+
+Before calling `write_pandas()`, uppercase all DataFrame column names and pass the table name as uppercase:
+
+```python
+df.columns = [c.upper() for c in df.columns]
+write_pandas(sf_conn, df, table_name=table.upper(), quote_identifiers=False, ...)
+```
+
+With `quote_identifiers=False`, Snowflake receives unquoted identifiers (`ORDERS`, `ORDER_ID`) and stores them as uppercase — the standard Snowflake default. SQL queries (including the post-load `COUNT(*)`) use lowercase unquoted identifiers; Snowflake normalizes them to uppercase at query time so they match.
+
+**Why this matters:** If `quote_identifiers=True` (the default), Snowflake stores column names exactly as passed — lowercase `order_id` becomes a case-sensitive quoted identifier. dbt models reference columns without quotes, which Snowflake resolves as uppercase `ORDER_ID`. The two never match, causing every dbt model to fail with a "column not found" error.
+
+---
+
 ## Row Count Validation
 
 After each `write_pandas()` call, a `COUNT(*)` query runs against Snowflake to confirm rows landed. A mismatch raises immediately.
 
 ```python
-write_pandas(sf_conn, df, table_name=table, ...)
+df.columns = [c.upper() for c in df.columns]
+
+write_pandas(sf_conn, df, table_name=table.upper(), ...)
 
 cursor = sf_conn.cursor()
 cursor.execute(f"SELECT COUNT(*) FROM {database}.{schema}.{table}")

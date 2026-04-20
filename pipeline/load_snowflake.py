@@ -81,6 +81,6 @@ if __name__ == "__main__":
     )
     try:
         load_snowflake()
-    except Exception as exc:
-        logging.error("Pipeline failed: %s", exc)
+    except Exception:
+        logging.exception("Pipeline failed")
         raise SystemExit(1)
